@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/ShastaFarEye/mazacoin-new.svg?branch=master)](https://travis-ci.org//ShastaFarEye/mazacoin-new)
+
+
 This is non-production code!! https://github.com/MazaCoin/MazaCoin is where to find production code. 
 This version of mazacoin will replace the current repo when completed. We are reorganizing this code so that it:
 1) is directly forked from it's bitcoin source
@@ -9,8 +12,6 @@ This version of mazacoin will replace the current repo when completed. We are re
 
 Mazacoin Core integration/staging tree
 =====================================
-
-[![Build Status](https://travis-ci.org/bitcoin/bitcoin.svg?branch=master)](https://travis-ci.org/bitcoin/bitcoin)
 
 https://www.bitcoin.org
 
