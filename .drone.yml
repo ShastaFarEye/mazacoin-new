@@ -5,8 +5,6 @@ env:
   - MAKEJOBS=$$makeJobs
   - ARTIFACTS=${DRONE_BUILD_DIR}/artifacts
 script:
-  - git submodule init
-  - git submodule update
   - sudo apt-get update 
   - sudo apt-get install -y 
      libtool wget bsdmainutils 
@@ -14,7 +12,6 @@ script:
      libcurl4-openssl-dev automake make 
      libdb5.1++-dev ntp git build-essential 
      libssl-dev libdb5.1-dev libboost-all-dev 
-  - cd mazacoin 
   - ./autogen.sh 
   - ./configure --disable-dependency-tracking --enable-tests=yes --with-incompatible-bdb --enable-wallet=yes --prefix=${ARTIFACTS}
   - make -j ${MAKEJOBS} 
