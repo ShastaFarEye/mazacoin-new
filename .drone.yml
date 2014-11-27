@@ -1,0 +1,48 @@
+image: drone-builder
+git:
+  path: prospectors.shastafareye.net/devteam-projects/mazacoin-new
+env:
+  - MAKEJOBS=$$makeJobs
+  - ARTIFACTS=${DRONE_BUILD_DIR}/artifacts
+script:
+  - git submodule init
+  - git submodule update
+  - sudo apt-get update 
+  - sudo apt-get install -y 
+     libtool wget bsdmainutils 
+     autoconf makepasswd libqrencode-dev 
+     libcurl4-openssl-dev automake make 
+     libdb5.1++-dev ntp git build-essential 
+     libssl-dev libdb5.1-dev libboost-all-dev 
+  - cd mazacoin 
+  - ./autogen.sh 
+  - ./configure --disable-dependency-tracking --enable-tests=yes --with-incompatible-bdb --enable-wallet=yes --prefix=${ARTIFACTS}
+  - make -j ${MAKEJOBS} 
+  - make install
+publish:
+  docker:
+    docker_host: $$dockerHost
+    docker_version: 1.3.1
+    registry_login: true
+    username: $$registryUser
+    password: $$registryPass
+    email: $$registryEmail
+    image_name: $$imageName
+    keep_builds: false
+notify:
+  gitter:
+    room_id: $$GITTER_ROOM
+    token: $$GITTER_KEY
+    on_started: false
+    on_success: true
+    on_failure: true
+  irc:
+    server: chat.freenode.net
+    nick: mazaminion
+    channel: '#mazaclub-dev'
+    on_started: true
+    on_success: true
+    on_failure: true
+  email:
+    recipients:
+      - builds@guruvan.net
