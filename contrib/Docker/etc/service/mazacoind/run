@@ -1,0 +1,241 @@
+#!/bin/sh
+WALLET=default_wallet
+USER=maza
+MAZADIR=/home/${USER}/.mazacoin
+WALLETDIR=/home/wallets
+TESTNETDIR=${MAZADIR}/testnet3
+TESTNETWALLET=testnet_wallet
+MW_DIR=${MAZADIR}
+### Mazacoind doesn't start with a 0 length file, 
+### or a symlinked file. Blockdata and wallet files
+### require different storage and backup 
+### 
+### This script is intended to ensure that if you have
+### ${WALLETDIR} available, we store the wallet there 
+### and symlink it to ${MAZADIR} 
+###
+### If no wallet files are found, it will briefly start 
+### mazacoind to create a wallet.dat, and then if
+### ${WALLETDIR} is available, mv it there and symlink it.
+###
+### If the wallet state isn't determined by the script, and
+### we can't safely make a new one, mazacoind will be shutdown
+### giving you the opportunity to fix your wallets
+### 
+
+set -e
+### Check to see if we should even try to start
+if [ -f /etc/service/mazacoind/down ] ; then
+   echo "$(date +%m-%d:%H:%Mxi) mazacoind service is shutdown, remove /etc/service/mazacoind/down to restart"
+   sleep 60 
+   exit 1
+fi
+#wc=0
+## Check to see if we're running on testnet
+TESTNET=$(grep testnet ${MAZADIR}/mazacoin.conf|awk -F= '{print $2}')
+if [ "${TESTNET}" = "1" ] ; then
+   MW_DIR=${TESTNETDIR}
+   WALLET=${TESTNETWALLET}
+fi
+if [ -f ${WALLETDIR}/.container ] ; then 
+   echo "$(date) ${WALLETDIR} is containerized."
+fi
+
+wallet_status () {
+#find out if we have a ${WALLET} anywhere
+#
+#
+# 1 pt for a file in WALLETDIR
+# 2 pt for file in MW_DIR
+# 1 pt for symlink in MAZADIR
+ if [ -f ${MW_DIR}/${WALLET} ] ; then 
+    container=$((container+2))
+#    echo "$(date +%m-%d:%H:%M) Found ${MW_DIR}/${WALLET} Wallet status:  ${container} "
+    echo "$(date +%m-%d:%H:%M) Found ${MW_DIR}/${WALLET}"
+    if [ ! -h ${MW_DIR}/${WALLET} ] ; then
+       container=$((container+1))
+#       echo "$(date +%m-%d:%H:%M) Found ${MW_DIR}/${WALLET} is a link. Wallet status:  ${container} "
+       echo "$(date +%m-%d:%H:%M) Found ${MW_DIR}/${WALLET} is a link."
+    fi 
+ fi
+ 
+ if [ -f ${WALLETDIR}/${WALLET} ] ; then
+    container=$((container+1))
+    echo "$(date +%m-%d:%H:%M) Found ${WALLETDIR}/${WALLET}"
+    if [ ! -h ${MW_DIR}/${WALLET} ] ; then
+       echo "$(date +%m-%d:%H:%M) Found ${WALLETDIR}/${WALLET} is not linked to ${MW_DIR}/${WALLET}"
+       ln -sv ${WALLETDIR}/${WALLET} ${MW_DIR}/${WALLET}      
+       wallet_status
+    fi
+ fi
+ if [ -h ${MW_DIR}/${WALLET} ] ; then
+    container=$((container+1))
+    echo "$(date +%m-%d:%H:%M) Found ${MW_DIR}/${WALLET} symlink "
+    link=$(readlink ${MW_DIR}/${WALLET})
+    echo "$(date +%m-%d:%H:%M) ${MW_DIR}/${WALLET} symlinked to ${link} "
+    if [ "${link}X" = "${WALLETDIR}/${WALLET}X" ] ; then
+       container=$((container+1))
+       echo "$(date +%m-%d:%H:%M) Found ${MW_DIR}/${WALLET} is linked to ${WALLETDIR}/${WALLET} "
+       if [ ! -f "${link}" ] ; then
+          echo "$(date +%m-%d:%H:%M) ${MW_DIR}/${WALLET} symlink is bad, removing.."
+          mv -v ${MW_DIR}/${WALLET} ${MW_DIR}/${WALLET}.symlink.bak
+          container=$((container- 1))
+          if [ -f ${MW_DIR}/wallet.dat ] ; then
+             container=$((container+1))
+             echo "$(date +%m-%d:%H:%M) ${MW_DIR}/${WALLET} symlink removed, ${MW_DIR}/wallet.dat found, rechecking config"
+          fi
+       fi
+    fi
+ fi
+if [ "${container}" -eq 2 ] ; then
+   if [ -f ${MW_DIR}/wallet.dat ] ; then
+      echo "$(date +%m-%d:%H:%M) ${MW_DIR}/wallet.dat is all we found, you may not have a data volume mounted on ${WALLETDIR}"
+      container=$((container+1))
+   fi
+fi       
+}
+
+new_wallet () {
+      echo "$(date +%m-%d:%H:%M) ${WALLET} was not found in ${MW_DIR} making new one"
+      chown -R ${USER}.${USER} ${MAZADIR} 
+      chown -R ${USER}.${USER} ${WALLETDIR} 
+      chmod 600 ${MAZADIR}/mazacoin.conf
+    if [ ${container}  -ne 5 ] ; then
+      if [ -f ${MAZADIR}/.firstrun ] ; then
+
+        su - maza -c "/usr/local/bin/mazacoind" &
+        PID=$(pgrep "/usr/local/bin/mazacoind" |grep -v grep|awk '{print $2}')
+	echo "${PID}" >> "${MAZADIR}//mazacoind.pid.${PID}"
+        echo "if this is your first time running mazacoind, "
+        echo "we'll wait to copy your new wallet to it's container"
+        echo "until mazacoind shuts down gracefully"
+        sleep 120 
+        X=1
+        while X=0 ; do
+          sleep 5
+          su - maza -c "/usr/local/bin/mazacoin-cli stop" > ${MAZADIR}/mzc.stop
+          grep "stopping"  ${MAZADIR}/mzc.stop && X=0 ; break
+          if [ ${X} = 1 ] ; then
+            echo "$(date +%m-%d:%H:%M) mazacoin appears to be initializing the blockchain still"
+          fi
+        done
+        echo "$(date +%m-%d:%H:%M) mazacoin seems to have stopped"
+        rm ${MAZADIR}/mzc.stop
+        sleep 120 
+      fi
+      echo "$(date +%m-%d:%H:%M) now copying your new wallet to ${MW_DIR}/${WALLET}"
+      if [ ! -h ${MW_DIR}/${WALLET} ] ; then
+        cp ${MW_DIR}/wallet.dat ${MW_DIR}/${WALLET}
+      fi
+      echo "$(date +%m-%d:%H:%M) new wallet ${MW_DIR}/${WALLET} created"
+      ## If /home/wallets is mounted, we make sure that it's a proper data container
+      ## we made and not just a daemon docker with a mount point at ${WALLETDIR} 
+      ## as the mountpoint would be ephemeral
+      if [ -d ${WALLETDIR} ] ; then
+        if [ -f ${WALLETDIR}/.container ] ; then
+          echo "$(date +%m-%d:%H:%M) found wallet data-container dir ${WALLETDIR} moving ${WALLET}"
+          mv -v ${MW_DIR}/${WALLET} ${WALLETDIR}/${WALLET}
+          ln -vs ${WALLETDIR}/${WALLET}  ${MW_DIR}/${WALLET} 
+          echo "$(date +%m-%d:%H:%M) new wallet ${MW_DIR}/${WALLET} linked"
+        fi
+      fi
+      echo "$(date +%m-%d:%H:%M) Mazacoind can now start safely"
+      echo "$(date +%m-%d:%H:%M) Your wallet is ${WALLETDIR}/${WALLET}"
+   fi
+}
+firstrun () {
+   rm ${MAZADIR}/.lock
+   echo "$(date +%m-%d:%Y:%H:%M) making rpcpassword"
+   sed -i '/rpcpassword/d' ${MAZADIR}/mazacoin.conf 
+   pass=$(makepasswd -char 32) 
+   echo "rpcpassword=${pass}"  >> ${MAZADIR}/mazacoin.conf
+   echo "$(date +%m-%d:%H:%M) starting new wallet maker"
+   if [ "${container}" -eq 0 ] ; then
+     new_wallet
+   fi
+   rm ${MAZADIR}/.firstrun
+   if [ ${container}  -ne 5 ] ; then
+      wallet_status
+   fi
+}
+check_wallet () {
+   wallet_status
+     if [ "${container}" -eq 0 ] ; then
+        new_wallet 
+     fi
+   wallet_status
+} 
+start_mazacoind () {
+    echo "$(date +%m-%d:%Y:%H:%M) Correcting the permissions and ownership in ${MAZADIR} and ${WALLETDIR}"
+    chown -R ${USER}.${USER} ${MAZADIR} 
+    chown -R ${USER}.${USER} ${WALLETDIR} 
+    chmod 600 ${MAZADIR}/mazacoin.conf
+    echo "$(date +%m-%d:%H:%M) Mazacoind starting"
+    if [ -f /etc/mazacoind-nowallet ] ; then
+       exec su ${USER} -c "/usr/local/bin/mazacoind -disablewallet"
+    else exec su ${USER} -c "/usr/local/bin/mazacoind -wallet=${WALLET}"
+    fi
+}
+
+##########################################################
+## First check wallet_status, see what we have to work with
+# Container holds the safety check count - make sure it's safe to start mazacoind
+container=0
+echo "$(date +%m-%d:%H:%M) Checking status of MAZACOIN DATADIR: ${MAZADIR}"
+echo "$(date +%m-%d:%H:%M) Checking status of WALLETDIR: ${WALLETDIR}"
+echo "$(date +%m-%d:%H:%M) Checking status of MAZACOIND_WALLETDIR: ${MW_DIR}"
+if [ ! -f /etc/mazacoind-nowallet ] ; then
+   wallet_status
+else container=5
+fi
+
+
+## Check for ${MAZADIR}/.firstrun - see if we have a ${WALLET} in ${WALLETDIR} 
+## and if not, we'll proceed to start mazacoind briefly to make one
+   if [ -f ${MAZADIR}/.firstrun ] ;then 
+      echo "$(date +%m-%d:%H:%M) This is the firsttime mazacoind has been run in ${MAZADIR}"
+      firstrun  
+      echo "$(date +%m-%d:%H:%M) firstrun finished"
+   fi
+if [ ${container} -le 4 ] ; then
+   if [ ${container} -eq 0 ] ; then 
+      if [ -f ${MW_DIR}/wallet.dat ] ; then
+         container=1
+         wallet_status
+      fi   
+   fi
+
+   ## If we ran the firstrun and made a new wallet, make sure it's right
+   if [ ! -f ${MW_DIR}/wallet.dat ] ; then
+      echo "$(date +%m-%d:%H:%M) ${MW_DIR}/wallet.dat not found - Checking for ${WALLET}"
+      check_wallet
+   fi
+   if [ ${container} -eq 1 ] ; then
+      echo "$(date +%m-%d:%H:%M) We found ${WALLET} in ${WALLETDIR} let link it..."
+      ln -sv ${WALLETDIR}/${WALLET} ${MW_DIR}/${WALLET} 
+      # now recheck the wallet status
+      wallet_status
+   fi 
+   ## Now see if we have enought container points to start mazacoind
+   if [ ${container} -ge 3 ] ; then
+      start_mazacoind
+   fi   
+elif [ ${container} -eq 5 ] ; then
+   echo "Turning off crond"
+   touch /etc/service/cron/down
+   echo "$(date) Starting mazacoind with disabledwallet"
+   start_mazacoind
+fi
+
+
+echo "$(date +%m-%d:%H:%M) Wallet Status = ${container} which is not safe enough to start mazacoind"
+echo "$(date +%m-%d:%H:%M) You may not have your wallet setup correctly, please correct this"
+echo "$(date +%m-%d:%H:%M) and then you can restart mazacoind with the following command:"
+echo "$(date +%m-%d:%H:%M) rm /etc/service/mazacoind/down"
+echo "$(date +%m-%d:%H:%M) ensure that the following files exist are are not corrupt:"  
+echo "$(date +%m-%d:%H:%M) ${MW_DIR}/wallet.dat"
+echo "$(date +%m-%d:%H:%M) ${WALLETDIR}/${WALLET}"
+echo "$(date +%m-%d:%H:%M) And make sure ${MW_DIR}/${WALLET} is a symlink to ${WALLETDIR}/${WALLET}"
+echo "$(date +%m-%d:%H:%M) Exiting and shuttung down mazacoind service....."
+touch /etc/service/mazacoind/down
+exit 195

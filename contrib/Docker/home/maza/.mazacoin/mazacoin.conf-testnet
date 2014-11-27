@@ -1,0 +1,14 @@
+rpcuser=mazacoin_rpc
+port=11835
+rpcport=11832
+server=1
+daemon=0
+rpcallowip=127.0.0.1
+rpcallowip=172.17.0.0/16
+listen=1
+addnode=maza.cryptoadhd.com
+addnode=stratum.cryptoadhd.com
+addnode=maza.maza.club
+addnode=maza2.maza.club
+addnode=maza3.maza.club
+testnet=1
