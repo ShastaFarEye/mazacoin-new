@@ -1,4 +1,4 @@
-[![Build Status](http://thunderfuck.mazaclub:10001/api/badge/prospectors.shastafareye.net/devteam-projects/mazacoin-new-shastafareye/status.svg?branch=master)](http://thunderfuck.mazaclub:10001/prospectors.shastafareye.net/devteam-projects/mazacoin-new-shastafareye)
+[![Build Status](https://travis-ci.org/ShastaFarEye/mazacoin-new.svg?branch=master)](https://travis-ci.org/ShastaFarEye/mazacoin-new)
 
 This is non-production code!! https://github.com/MazaCoin/MazaCoin is where to find production code. 
 This version of mazacoin will replace the current repo when completed. We are reorganizing this code so that it:
