@@ -59,7 +59,7 @@ def checkout_pull(clone_url, commit, out):
 
 def commentOn(commentUrl, success, inMerge, needTests, linkUrl):
     common_message = """
-This test script verifies pulls every time they are updated. It, however, dies sometimes and fails to test properly.  If you are waiting on a test, please check timestamps to verify that the test.log is moving at http://jenkins.bluematt.me/pull-tester/current/
+This test script verifies pulls every time they are updated. It, however, dies sometimes and fails to test properly.  If you are waiting on a test, please check timestamps to verify that the test.log is moving at http://jenkins.mazapullbot.me/pull-tester/current/
 Contact BlueMatt on freenode if something looks broken."""
 
     # Remove old BitcoinPullTester comments (I'm being lazy and not paginating here)
@@ -152,20 +152,20 @@ if "GITHUB_USER" not in os.environ or "GITHUB_AUTH_TOKEN" not in os.environ:
     print("GITHUB_USER and/or GITHUB_AUTH_TOKEN environment variables not set")
     sys.exit(1)
 
-environ_default("CLONE_URL", "https://github.com/bitcoin/bitcoin.git")
+environ_default("CLONE_URL", "https://github.com/mazacoin/mazacoin.git")
 environ_default("MINGW_DEPS_DIR", "/mnt/w32deps")
 environ_default("SCRIPTS_DIR", "/mnt/test-scripts")
 environ_default("CHROOT_COPY", "/mnt/chroot-tmp")
 environ_default("CHROOT_MASTER", "/mnt/chroot")
 environ_default("OUT_DIR", "/mnt/out")
-environ_default("BUILD_PATH", "/mnt/bitcoin")
+environ_default("BUILD_PATH", "/mnt/mazacoin")
 os.environ["BUILD_DIR"] = os.environ["CHROOT_COPY"] + os.environ["BUILD_PATH"]
 environ_default("RESULTS_DIR", "/mnt/www/pull-tester")
-environ_default("RESULTS_URL", "http://jenkins.bluematt.me/pull-tester/")
-environ_default("GITHUB_REPO", "bitcoin/bitcoin")
+environ_default("RESULTS_URL", "http://jenkins.mazapullbot.me/pull-tester/")
+environ_default("GITHUB_REPO", "mazacoin/mazacoin")
 environ_default("TESTED_DB", "/mnt/commits-tested.txt")
-environ_default("BUILD_USER", "matt")
-environ_default("BUILD_GROUP", "matt")
+environ_default("BUILD_USER", "mazapullbot")
+environ_default("BUILD_GROUP", "mazapullbot")
 environ_default("TEST_TIMEOUT", str(60*60*2))
 
 print("Optional usage: pull-tester.py 2112")
