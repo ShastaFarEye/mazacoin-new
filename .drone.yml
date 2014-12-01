@@ -2,6 +2,7 @@ image: drone-builder
 git:
   path: prospectors.shastafareye.net/devteam-projects/mazacoin-new
 env:
+  - APP=mazacoin-tests
   - MAKEJOBS=$$makeJobs
   - ARTIFACTS=${DRONE_BUILD_DIR}/artifacts
 script:
@@ -12,10 +13,22 @@ script:
      libcurl4-openssl-dev automake make 
      libdb5.1++-dev ntp git build-essential 
      libssl-dev libdb5.1-dev libboost-all-dev 
+  - mkdir ${DRONE_BUILD_DIR}/docker-build
+  - cp -av contrib/Docker/Dockerfile ${DRONE_BUILD_DIR}/docker-build/
+  - cp -av contrib/Docker/etc ${DRONE_BUILD_DIR}/docker-build/
+  - cp -av contrib/Docker/home ${DRONE_BUILD_DIR}/docker-build/ 
+  - cp -av contrib/Docker/usr ${DRONE_BUILD_DIR}/docker-build/
   - ./autogen.sh 
   - ./configure --disable-dependency-tracking --enable-tests=yes --with-incompatible-bdb --enable-wallet=yes --prefix=${ARTIFACTS}
   - make -j ${MAKEJOBS} 
+  - make check
   - make install
+  - echo "Build complete - DOCKER BUID SETUP....."
+  - cd ${DRONE_BUILD_DIR}
+  - tar -C ${ARTIFACTS} -cpvf ${DRONE_BUILD_DIR}/docker-build/mazacoin-new.tar .
+  - touch docker-build/etc/${APP}
+  - cd docker-build 
+  - pwd ; echo "Publishing Docker image"
 publish:
   docker:
     docker_host: $$dockerHost

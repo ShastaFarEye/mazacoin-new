@@ -55,6 +55,7 @@ src/qt/test/moc*.cpp
 *.o-*
 *.patch
 .mazacoin
+!contrib/Docker/home/maza/.mazacoin
 *.a
 *.pb.cc
 *.pb.h
@@ -101,3 +102,4 @@ qa/pull-tester/run-mazacoind-for-test.sh
 qa/pull-tester/build-tests.sh
 
 !src/leveldb*/Makefile
+!contrib/Docker/

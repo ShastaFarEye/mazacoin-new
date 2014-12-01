@@ -1,0 +1,1 @@
+43 2,6,10,14,18,22 * * * maza /usr/local/bin/backup_wallet.sh
